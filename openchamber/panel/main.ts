@@ -188,7 +188,8 @@ function renderComparison(): void {
   mountList(slot(comparison), { items: rewrites.map((row) => ({
     id: row.messageID, title: row.original?.slice(0, 65) || row.rewrite?.slice(0, 65) || "(empty request)",
     subtitle: row.error ? "Not optimized · sent unchanged"
-      : `${row.model} · ${row.context}${row.candidates ? ` · ${row.candidates} candidate(s)` : ""}`,
+      : row.changed === false ? `${row.model} · unchanged (already clear)`
+        : `${row.model} · ${row.context}${row.candidates ? ` · ${row.candidates} candidate(s)` : ""}`,
   })), onSelect(id) { selectedRewrite = id; renderComparison() } })
   const row = rewrites.find((value) => value.messageID === selectedRewrite) ?? rewrites[0]!
   selectedRewrite = row.messageID
@@ -199,6 +200,13 @@ function renderComparison(): void {
   if (row.error) {
     mountBanner(slot(comparison), {
       tone: "warning", title: "Not optimized", body: `${row.error} — the original request was sent to the chat model unchanged.`,
+    })
+    return
+  }
+  if (row.changed === false) {
+    mountBanner(slot(comparison), {
+      tone: "info", title: "Already clear",
+      body: `${row.model} returned this request unchanged after ${row.ms}ms, so no rewrite was applied.`,
     })
     return
   }

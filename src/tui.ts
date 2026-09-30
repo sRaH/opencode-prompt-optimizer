@@ -41,6 +41,7 @@ export const setup: Plugin.Definition["setup"] = async (ctx) => {
           ] }))
           return element("box", { padding: 1, gap: 1, height: 24 },
             element("text", {}, `Prompt rewrite · ${rewrite.model} · ${rewrite.ms}ms · ${rewrite.context}` +
+              (rewrite.changed === false ? " · unchanged (already clear)" : "") +
               (rewrite.candidates ? ` · ${rewrite.candidates.length} candidate(s)${rewrite.judged ? " · judged" : ""}` : "")),
             element("scrollbox", { ref: (value: typeof box) => { box = value }, flexGrow: 1 },
               element("text", { wrapMode: "word" }, `Original:\n${rewrite.original ?? "Not stored (metadata: rewrite)"}\n\nRewrite:\n${rewrite.rewrite}`)),

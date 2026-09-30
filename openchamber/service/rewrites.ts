@@ -8,6 +8,8 @@ export interface RewriteRow {
   /** Set when the optimizer produced an accepted rewrite. */
   rewrite?: string
   model?: string
+  /** False when the optimizer returned the request unchanged because it was already clear. */
+  changed?: boolean
   /** Set when the optimizer failed and the original prompt was sent unchanged. */
   error?: string
   context?: string
@@ -37,7 +39,8 @@ export async function readRewrites(client: Pick<OpenCodeClient, "session" | "mes
       const rewrite = text(value.rewrite, 16000)
       if (value.version === 1 && rewrite && typeof value.model === "string") return [{
         messageID: message.id, original: text(value.original, 16000),
-        rewrite, model: value.model, context: typeof value.context === "string" ? value.context : "none",
+        rewrite, model: value.model, changed: value.changed !== false,
+        context: typeof value.context === "string" ? value.context : "none",
         candidates: Array.isArray(value.candidates) ? value.candidates.length : 0,
         judged: value.judged === true, ms: typeof value.ms === "number" ? value.ms : 0,
         created: message.time.created,

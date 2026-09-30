@@ -11,6 +11,8 @@ export interface RewriteMetadata {
   version: 1
   original?: string
   rewrite: string
+  /** Absent on metadata written before this field existed; such entries did change the prompt. */
+  changed?: boolean
   model: string
   target: string
   context: "recap+recent" | "recap" | "recent" | "none"
@@ -24,7 +26,8 @@ export interface RewriteMetadata {
 export function readRewrite(value: unknown): RewriteMetadata | undefined {
   if (!value || typeof value !== "object") return
   const record = value as Partial<RewriteMetadata>
-  if (record.version === 1 && (record.original === undefined || typeof record.original === "string") && typeof record.rewrite === "string"
+  if (record.version === 1 && (record.original === undefined || typeof record.original === "string")
+    && typeof record.rewrite === "string" && (record.changed === undefined || typeof record.changed === "boolean")
     && typeof record.model === "string" && typeof record.target === "string" && typeof record.ms === "number"
     && ["recap+recent", "recap", "recent", "none"].includes(record.context ?? "")) return record as RewriteMetadata
 }
@@ -110,16 +113,19 @@ export const setup: Plugin.Plugin["setup"] = async (ctx) => {
         return reply.text
       })
       const rewrite = result.rewrite
-      if (rewrite === text) return
+      const changed = rewrite !== text
       // Admission is the single canonical edit; only mutate after all fallible work succeeds.
-      event.prompt.text = rewrite
-      for (const attachment of [...(event.prompt.files ?? []), ...(event.prompt.agents ?? []), ...(event.prompt.skills ?? [])])
-        delete attachment.mention
+      if (changed) {
+        event.prompt.text = rewrite
+        for (const attachment of [...(event.prompt.files ?? []), ...(event.prompt.agents ?? []), ...(event.prompt.skills ?? [])])
+          delete attachment.mention
+      }
+      // Record an unchanged result too, so the UI can tell "already clear" from "skipped".
       if (config.metadata !== "none") event.metadata = { ...event.metadata, contextPromptOptimizer: {
         version: 1, ...(config.metadata === "full" ? { original } : {}),
-        rewrite, model: config.model, target, context: info.source, ms: Date.now() - started,
+        rewrite, changed, model: config.model, target, context: info.source, ms: Date.now() - started,
         ...(config.metadata === "full" ? { candidates: result.candidates } : {}),
-        chosen: result.chosen, judged: result.judged, toast: config.toast,
+        chosen: result.chosen, judged: result.judged, toast: config.toast && changed,
       } satisfies RewriteMetadata }
     } catch (error) {
       // Keep the failure visible without echoing request text or raw payload content.

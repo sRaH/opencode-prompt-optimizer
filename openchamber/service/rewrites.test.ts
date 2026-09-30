@@ -13,14 +13,18 @@ test("returns only optimizer metadata from user messages in the open project", a
       { type: "user", id: "msg_3", time: { created: 40 }, text: "Keep this exact request", metadata: {
         contextPromptOptimizerError: "Error: invalid or oversized optimizer response",
       } },
+      { type: "user", id: "msg_4", time: { created: 39 }, text: "Already clear request", metadata: {
+        contextPromptOptimizer: { version: 1, original: "Already clear request", rewrite: "Already clear request", changed: false, model: "cheap/model", context: "none", ms: 900 },
+      } },
     ] } } },
   }
   expect(await readRewrites(client as never, "ses_test", process.cwd())).toEqual([
     {
       messageID: "msg_1", original: "Fix login", rewrite: "Fix login in src/auth.ts", model: "cheap/model",
-      context: "recent", candidates: 2, judged: true, ms: 120, created: 42,
+      changed: true, context: "recent", candidates: 2, judged: true, ms: 120, created: 42,
     },
     { messageID: "msg_3", original: "Keep this exact request", error: "Error: invalid or oversized optimizer response", created: 40 },
+    { messageID: "msg_4", original: "Already clear request", rewrite: "Already clear request", model: "cheap/model", changed: false, context: "none", candidates: 0, judged: false, ms: 900, created: 39 },
   ])
   expect(listed).toBe(1)
   await expect(readRewrites(client as never, "ses_test", "/other-project")).rejects.toThrow("open project")
