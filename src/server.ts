@@ -10,6 +10,8 @@ export const ID = "context-prompt-optimizer"
 export interface RewriteMetadata {
   version: 1
   original?: string
+  /** The exact prompt sent to the optimizer (instructions + recap + recent + request). */
+  sent?: string
   rewrite: string
   /** Absent on metadata written before this field existed; such entries did change the prompt. */
   changed?: boolean
@@ -103,9 +105,12 @@ export const setup: Plugin.Plugin["setup"] = async (ctx) => {
       const info = background(messages, recap, config.context)
       const slash = config.model.indexOf("/")
       const started = Date.now()
+      // The exact payload the optimizer model receives, for the panel's context view.
+      let sent = ""
       const result = await optimizeWith({
         original: text, target, context: info, system: selectPrompt(config, target), judgeSystem: config.judgePrompt,
         turns: config.turns, strategy: config.strategy, maxRewriteChars: config.maxRewriteChars,
+        onRequest: (prompt) => { sent ||= prompt },
       }, async (prompt) => {
         const reply = await ctx.generate.text({
           model: { providerID: config.model!.slice(0, slash), id: config.model!.slice(slash + 1) }, prompt,
@@ -122,7 +127,7 @@ export const setup: Plugin.Plugin["setup"] = async (ctx) => {
       }
       // Record an unchanged result too, so the UI can tell "already clear" from "skipped".
       if (config.metadata !== "none") event.metadata = { ...event.metadata, contextPromptOptimizer: {
-        version: 1, ...(config.metadata === "full" ? { original } : {}),
+        version: 1, ...(config.metadata === "full" ? { original, sent } : {}),
         rewrite, changed, model: config.model, target, context: info.source, ms: Date.now() - started,
         ...(config.metadata === "full" ? { candidates: result.candidates } : {}),
         chosen: result.chosen, judged: result.judged, toast: config.toast && changed,

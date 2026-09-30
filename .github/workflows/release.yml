@@ -30,7 +30,7 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          tar -czf "opencode-prompt-optimizer-${TAG}.tar.gz" package.json bun.lock README.md LICENSE server.js tui.js dist openchamber/panel/index.html openchamber/panel/main.js openchamber/service/main.js
+          tar -czf "opencode-prompt-optimizer-${TAG}.tar.gz" package.json bun.lock README.md LICENSE server.js tui.js dist skills openchamber/panel/index.html openchamber/panel/main.js openchamber/service/main.js
           sha256sum "opencode-prompt-optimizer-${TAG}.tar.gz" > "opencode-prompt-optimizer-${TAG}.tar.gz.sha256"
       - name: Create GitHub Release
         env:

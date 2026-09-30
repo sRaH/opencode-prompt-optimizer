@@ -67,9 +67,13 @@ export interface OptimizeResult { rewrite: string; candidates: string[]; chosen:
 export async function optimizeWith(input: {
   original: string; target: string; context: Background; system: string; judgeSystem: string
   turns: number; strategy: "parallel" | "refine"; maxRewriteChars: number
+  /** Called once per candidate prompt, for the first candidate through. */
+  onRequest?: (prompt: string) => void
 }, generate: (prompt: string) => Promise<string>): Promise<OptimizeResult> {
   const candidate = async (previous?: string) => {
-    const text = parseRewrite(await generate(optimizerInput(input.original, input.target, input.context, input.system, previous)), input.maxRewriteChars)
+    const request = optimizerInput(input.original, input.target, input.context, input.system, previous)
+    input.onRequest?.(request)
+    const text = parseRewrite(await generate(request), input.maxRewriteChars)
     validateRewrite(input.original, text)
     return text
   }

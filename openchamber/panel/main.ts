@@ -23,6 +23,7 @@ let directory: string | null = null
 let sessionID: string | null = null
 let rewrites: RewriteRow[] = []
 let selectedRewrite: string | null = null
+let showContext = false
 let settingsGeneration = 0
 let rewriteGeneration = 0
 let noticeHandle: { dispose(): void } | null = null
@@ -190,35 +191,58 @@ function renderComparison(): void {
     subtitle: row.error ? "Not optimized · sent unchanged"
       : row.changed === false ? `${row.model} · unchanged (already clear)`
         : `${row.model} · ${row.context}${row.candidates ? ` · ${row.candidates} candidate(s)` : ""}`,
-  })), onSelect(id) { selectedRewrite = id; renderComparison() } })
+  })), onSelect(id) { selectedRewrite = id; showContext = false; renderComparison() } })
   const row = rewrites.find((value) => value.messageID === selectedRewrite) ?? rewrites[0]!
   selectedRewrite = row.messageID
+
+  // Routing and the payload view come first so every row — rewritten or not — can be inspected.
+  const routing = document.createElement("p")
+  routing.className = "subtle"
+  routing.textContent = `Optimizer ${row.model ?? "unknown"} → chat model ${row.target ?? "unknown"} · context ${row.context ?? "unknown"}`
+  comparison.appendChild(routing)
+  const contextToggle = slot(comparison)
+  contextToggle.className = "actions"
+  mountButton(contextToggle, {
+    label: showContext ? "Hide context sent" : "Show context sent", variant: "outline",
+    onClick: () => { showContext = !showContext; renderComparison() },
+  })
+
   heading(comparison, "Original")
   const original = document.createElement("pre")
   original.textContent = row.original ?? "Not stored — metadata is set to rewrite-only."
   comparison.appendChild(original)
+
   if (row.error) {
     mountBanner(slot(comparison), {
-      tone: "warning", title: "Not optimized", body: `${row.error} — the original request was sent to the chat model unchanged.`,
+      tone: "warning", title: "Not optimized",
+      body: `${row.error} — the original request was sent to the chat model unchanged.`,
     })
-    return
-  }
-  if (row.changed === false) {
+  } else if (row.changed === false) {
     mountBanner(slot(comparison), {
       tone: "info", title: "Already clear",
       body: `${row.model} returned this request unchanged after ${row.ms}ms, so no rewrite was applied.`,
     })
+  } else {
+    heading(comparison, "Optimized")
+    const optimized = document.createElement("pre")
+    optimized.textContent = row.rewrite ?? ""
+    comparison.appendChild(optimized)
+    const copy = slot(comparison)
+    copy.className = "actions"
+    const rewrite = row.rewrite ?? ""
+    if (row.original) mountButton(copy, { label: "Copy original", variant: "outline", onClick: () => void host.writeClipboard(row.original!) })
+    if (rewrite) mountButton(copy, { label: "Copy optimized", variant: "outline", onClick: () => void host.writeClipboard(rewrite) })
+  }
+
+  if (!showContext) return
+  heading(comparison, "Exact context sent to the optimizer")
+  if (!row.sent) {
+    mountBanner(slot(comparison), { tone: "info", title: "Not stored", body: 'Set metadata to "full" to store the exact payload alongside the rewrite.' })
     return
   }
-  heading(comparison, "Optimized")
-  const optimized = document.createElement("pre")
-  optimized.textContent = row.rewrite ?? ""
-  comparison.appendChild(optimized)
-  const copy = slot(comparison)
-  copy.className = "actions"
-  const rewrite = row.rewrite ?? ""
-  if (row.original) mountButton(copy, { label: "Copy original", variant: "outline", onClick: () => void host.writeClipboard(row.original!) })
-  if (rewrite) mountButton(copy, { label: "Copy optimized", variant: "outline", onClick: () => void host.writeClipboard(rewrite) })
+  const sent = document.createElement("pre")
+  sent.textContent = row.sent.length > 40000 ? `${row.sent.slice(0, 40000)}\n… (truncated for display)` : row.sent
+  comparison.appendChild(sent)
 }
 
 async function refreshRewrites(): Promise<void> {

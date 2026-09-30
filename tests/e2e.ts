@@ -80,6 +80,10 @@ try {
   assert.equal(payload.text, "Investigate the login failure in src/auth.ts and fix its cause.")
   assert.equal(payload.metadata?.contextPromptOptimizer?.original, original)
   assert.equal(payload.metadata?.contextPromptOptimizer?.model, "optimizer-test/optimizer")
+  const sent = payload.metadata?.contextPromptOptimizer?.sent
+  assert(typeof sent === "string" && sent.includes('"current_request"'), "exact optimizer payload is stored")
+  assert(String(sent).includes(original), "stored payload contains the request")
+  assert(String(sent).includes("optimized_prompt"), "stored payload contains the skill instructions")
   assert.equal(calls.filter((call) => call.model === "optimizer").length, callsPerPrompt)
   assert.equal(calls[0]?.model, "optimizer")
   assert(JSON.stringify(calls[0]?.messages).includes("CUSTOM_TARGET_PROMPT"), "model-specific instructions are selected")

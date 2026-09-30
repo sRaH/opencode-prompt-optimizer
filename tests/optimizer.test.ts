@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { loadConfig, selectPrompt } from "../src/config.js"
+import { loadConfig, loadSkillInstructions, selectPrompt } from "../src/config.js"
 import { background, latestSummary } from "../src/context.js"
 import { optimizerInput, parseRewrite, validateRewrite, optimizeWith, growthLimit } from "../src/rewrite.js"
 import { readRecap, RecapCache } from "../src/recap.js"
@@ -23,9 +23,25 @@ test("configuration is bounded and requires a well-formed explicit model", () =>
   expect(selectPrompt(loadConfig({}), "other/model")).not.toContain("For GPT")
 })
 
+test("the optimizer skill is loaded as its instruction text, frontmatter stripped", () => {
+  const skill = loadSkillInstructions()
+  expect(skill.startsWith("---")).toBe(false)
+  expect(skill).toContain("Prompt optimization")
+  expect(skill).toContain("Output exactly one")
+  expect(skill).toContain("fix the typo in teh README")
+  // Family prompts are the skill plus one line, so tuning the skill retunes every model.
+  const gpt = selectPrompt(loadConfig({}), "openai/gpt-6-sol")
+  expect(gpt.startsWith(skill)).toBe(true)
+  expect(gpt).toContain("For GPT")
+  // A missing skill file still leaves the plugin working.
+  expect(loadSkillInstructions(new URL("../skills/does-not-exist/SKILL.md", import.meta.url))).toContain("<optimized_prompt>")
+})
+
 test("multi-candidate judging selects the valid winner and falls back on judge failure", async () => {
+  const seen: string[] = []
   const input = { original: "Fix src/auth.ts carefully", target: "openai/gpt-6-sol", context: { recap: "", recent: "", source: "none" as const },
-    system: "Rewrite", judgeSystem: "Judge", turns: 3, strategy: "parallel" as const, maxRewriteChars: 500 }
+    system: "Rewrite", judgeSystem: "Judge", turns: 3, strategy: "parallel" as const, maxRewriteChars: 500,
+    onRequest: (prompt: string) => seen.push(prompt) }
   let calls = 0
   const result = await optimizeWith(input, async (prompt) => {
     if (prompt.includes('"candidates":')) { calls++; return "<best>2</best>" }
@@ -37,6 +53,10 @@ test("multi-candidate judging selects the valid winner and falls back on judge f
   expect(result.candidates).toHaveLength(2)
   expect(result.chosen).toBe(1)
   expect(result.judged).toBe(true)
+  // The captured context is the candidate payload, not the judge's.
+  expect(seen).toHaveLength(3)
+  expect(seen[0]).toContain('"current_request"')
+  expect(seen.every((prompt) => !prompt.includes('"candidates"'))).toBe(true)
   const refine = await optimizeWith({ ...input, turns: 2, strategy: "refine" }, async (prompt) => {
     if (prompt.includes('"candidates":')) throw new Error("judge failed")
     return prompt.includes("previous_attempt")
@@ -219,7 +239,12 @@ describe("prompt admission", () => {
     expect(event.prompt.text).toBe("Implement the TypeScript feature clearly.")
     expect(files[0]?.mention).toBeUndefined()
     expect(readRewrite(event.metadata?.contextPromptOptimizer)?.original).toBe(original)
-    expect(readRewrite(event.metadata?.contextPromptOptimizer)?.context).toBe("recent")
+    const meta = readRewrite(event.metadata?.contextPromptOptimizer)
+    expect(meta?.context).toBe("recent")
+    // The panel shows exactly what the optimizer received: skill, context, and request.
+    expect(meta?.sent).toContain("Prompt optimization")
+    expect(meta?.sent).toContain("Earlier we chose TypeScript")
+    expect(meta?.sent).toContain("Implement that feature, please")
   })
 
   test("an unchanged reply is recorded as already clear instead of looking skipped", async () => {
@@ -301,6 +326,8 @@ describe("prompt admission", () => {
       else {
         expect(readRewrite(event.metadata?.contextPromptOptimizer)?.rewrite).toBe(event.prompt.text)
         expect(readRewrite(event.metadata?.contextPromptOptimizer)?.original).toBeUndefined()
+        // The sent payload embeds the request, so rewrite-only must not store it either.
+        expect(readRewrite(event.metadata?.contextPromptOptimizer)?.sent).toBeUndefined()
       }
     }
   })

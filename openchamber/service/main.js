@@ -2187,6 +2187,8 @@ async function readRewrites(client, sessionID, directory) {
           rewrite,
           model: value.model,
           changed: value.changed !== false,
+          target: text(value.target, 200),
+          sent: text(value.sent, 40000),
           context: typeof value.context === "string" ? value.context : "none",
           candidates: Array.isArray(value.candidates) ? value.candidates.length : 0,
           judged: value.judged === true,
