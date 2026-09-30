@@ -1,0 +1,33 @@
+{
+  "name": "opencode-context-prompt-optimizer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "One-call, context-aware prompt optimization for OpenCode v2",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sRaH/opencode-prompt-optimizer.git"
+  },
+  "homepage": "https://github.com/sRaH/opencode-prompt-optimizer#readme",
+  "bugs": { "url": "https://github.com/sRaH/opencode-prompt-optimizer/issues" },
+  "main": "./dist/server.js",
+  "exports": {
+    ".": "./dist/server.js",
+    "./tui": "./dist/tui.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "e2e": "bun run build && bun tests/e2e.ts"
+  },
+  "dependencies": {
+    "@opencode/client": "2.0.18",
+    "@opencode/plugin": "2.0.18"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "typescript": "5.9.3"
+  }
+}
