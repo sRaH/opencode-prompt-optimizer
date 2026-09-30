@@ -73,6 +73,8 @@ try {
     await Bun.sleep(100)
   }
   assert(JSON.stringify(plugins).includes("context-prompt-optimizer"), `plugin not loaded: ${JSON.stringify(plugins.filter((p: any) => p.source?.type !== "builtin"))}`)
+  const skills = await api(`/api/skill?location[directory]=${encodeURIComponent(project)}`)
+  assert(skills.some((skill: { id: string }) => skill.id === "prompt-optimization"), "optimizer skill is advertised to OpenCode agents")
   const session = await api("/api/session", { title: "Context optimizer integration", location: { directory: project }, model: { providerID: "optimizer-test", id: "selected" } })
   const original = "login broken in src/auth.ts please figure it out and fix it"
   const admitted = await api(`/api/session/${session.id}/prompt`, { text: original, resume: true })

@@ -1,6 +1,8 @@
-import { Plugin } from "@opencode/plugin"
+import { Plugin, Skill } from "@opencode/plugin"
+import { existsSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 import type { SessionPrompt } from "@opencode/plugin/promise/session"
-import { loadConfig, selectPrompt } from "./config.js"
+import { loadConfig, loadSkillInstructions, selectPrompt, SKILL_PATH } from "./config.js"
 import { background, latestSummary } from "./context.js"
 import { localRecap, RecapCache } from "./recap.js"
 import { optimizeWith } from "./rewrite.js"
@@ -46,6 +48,18 @@ export function errorReason(error: unknown, request: string): string {
 export const setup: Plugin.Plugin["setup"] = async (ctx) => {
   if (!ctx.app.version.startsWith("2.")) throw new Error(`${ID} requires OpenCode v2`)
   const config = loadConfig(ctx.options)
+  // A plugin directory is not an OpenCode skill discovery root. Register the
+  // same skill we send to the optimizer so agents can load it by ID too.
+  if (existsSync(SKILL_PATH)) await ctx.skill.transform((skills) => {
+    if (skills.get("prompt-optimization")) return
+    skills.add({
+      id: Skill.ID.make("prompt-optimization"),
+      name: Skill.Name.make("Prompt Optimization"),
+      description: "Clarify a user's request without changing its intent, scope, or requested kind of help.",
+      path: fileURLToPath(SKILL_PATH) as Skill.Info["path"],
+      content: loadSkillInstructions(),
+    })
+  })
   let warnedModel = false
   let warnedContext = false
   const recaps = new RecapCache(config.context.recapChars)
