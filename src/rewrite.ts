@@ -25,9 +25,18 @@ export function judgeInput(original: string, target: string, context: Background
 }
 
 export function parseRewrite(response: string, limit: number): string {
-  const match = response.match(/^\s*<optimized_prompt>([\s\S]*?)<\/optimized_prompt>\s*$/)
-  const result = match?.[1]?.trim()
-  if (!result || Array.from(result).length > limit) throw new Error("invalid or oversized optimizer response")
+  // Cheap models often wrap the block in a sentence or code fence. Prefer a
+  // whole-message match, then fall back to the last non-empty tagged block.
+  const exact = response.match(/^\s*<optimized_prompt>([\s\S]*?)<\/optimized_prompt>\s*$/)?.[1]?.trim()
+  const blocks = [...response.matchAll(/<optimized_prompt>([\s\S]*?)<\/optimized_prompt>/gi)]
+    .map((match) => match[1]!.trim()).filter(Boolean)
+  const within = (value: string | undefined): value is string =>
+    !!value && Array.from(value).length <= limit
+  const result = within(exact) ? exact : blocks.filter((block) => within(block)).at(-1) ?? blocks.at(-1)
+  if (!result || Array.from(result).length > limit) {
+    const snippet = response.replace(/\s+/g, " ").trim().slice(0, 120)
+    throw new Error(`invalid or oversized optimizer response (reply: "${snippet}")`)
+  }
   return result
 }
 

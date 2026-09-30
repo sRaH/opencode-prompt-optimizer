@@ -24,11 +24,13 @@ jobs:
       - run: bun run typecheck
       - run: bun test
       - run: bun run build
+      - run: bun run build:extension
+      - run: git diff --exit-code -- openchamber/panel/main.js openchamber/service/main.js
       - name: Package directory plugin
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          tar -czf "opencode-prompt-optimizer-${TAG}.tar.gz" package.json bun.lock README.md LICENSE server.js tui.js dist
+          tar -czf "opencode-prompt-optimizer-${TAG}.tar.gz" package.json bun.lock README.md LICENSE server.js tui.js dist openchamber/panel/index.html openchamber/panel/main.js openchamber/service/main.js
           sha256sum "opencode-prompt-optimizer-${TAG}.tar.gz" > "opencode-prompt-optimizer-${TAG}.tar.gz.sha256"
       - name: Create GitHub Release
         env:

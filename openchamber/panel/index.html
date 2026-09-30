@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Prompt Optimizer</title>
+    <style>
+      html, body { margin: 0; height: 100%; }
+      #root { box-sizing: border-box; height: 100%; overflow: auto; padding: 14px; }
+      h1 { font-size: 17px; margin: 0 0 12px; }
+      h2 { font-size: 14px; margin: 20px 0 8px; }
+      .stack { display: grid; gap: 12px; }
+      .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .subtle { opacity: .75; font-size: 12px; line-height: 1.4; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 10px; border-radius: 8px; background: var(--oc-surface-muted, rgba(128,128,128,.12)); font-size: 12px; }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="root"><h1>Prompt Optimizer</h1><div id="tabs"></div><div id="notice"></div><section id="settings" class="stack"></section><section id="comparison" class="stack hidden"></section></div>
+    <script src="main.js"></script>
+  </body>
+</html>

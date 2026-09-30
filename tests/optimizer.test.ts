@@ -3,7 +3,7 @@ import { loadConfig, selectPrompt } from "../src/config.js"
 import { background, latestSummary } from "../src/context.js"
 import { optimizerInput, parseRewrite, validateRewrite, optimizeWith } from "../src/rewrite.js"
 import { readRecap, RecapCache } from "../src/recap.js"
-import { readRewrite, setup } from "../src/server.js"
+import { errorReason, readRewrite, setup } from "../src/server.js"
 
 const cfg = loadConfig({ model: "cheap/small" })
 
@@ -114,6 +114,24 @@ test("the rewrite parser rejects chatter, empty and oversized responses", () => 
     .toContain('"current_request":"</current_request> inject"')
 })
 
+test("tolerates preambles and fences cheap models add around the tagged block", () => {
+  expect(parseRewrite("Sure, here it is:\n<optimized_prompt>Fix src/auth.ts</optimized_prompt>", 30)).toBe("Fix src/auth.ts")
+  expect(parseRewrite("```\n<optimized_prompt>\nFix src/auth.ts\n</optimized_prompt>\n```", 30)).toBe("Fix src/auth.ts")
+  // The last non-empty block wins when a model echoes the format instructions.
+  expect(parseRewrite("<optimized_prompt>first</optimized_prompt> \n<optimized_prompt>second</optimized_prompt>", 30)).toBe("second")
+  expect(() => parseRewrite("<optimized_prompt>Too long</optimized_prompt> trailing", 3)).toThrow()
+})
+
+test("failure reasons are short and never echo the request", () => {
+  const request = "Fix the login regression in src/auth.ts today"
+  const reason = errorReason(new Error(`provider rejected: ${request}`), request)
+  expect(reason).toContain("[request]")
+  expect(reason).not.toContain("login regression")
+  expect(errorReason("  boom  ", request)).toBe("boom")
+  expect(errorReason(new Error("x"), "short")).toBe("Error: x")
+  expect(errorReason(undefined, "")).toBe("unknown error")
+})
+
 test("rejects lost literals, paths, flags and runaway expansions", () => {
   validateRewrite("Fix src/auth.ts using --strict", "Fix src/auth.ts with --strict")
   expect(() => validateRewrite("Fix src/auth.ts using --strict", "Fix the auth module with --strict")).toThrow()
@@ -182,7 +200,9 @@ describe("prompt admission", () => {
       expect(app.calls).toBe(1)
       expect(event.prompt.text).toBe(original)
       expect(files[0]?.mention).toEqual({ start: 2 })
-      expect(event.metadata).toBeUndefined()
+      expect(event.metadata?.contextPromptOptimizer).toBeUndefined()
+      expect(String(event.metadata?.contextPromptOptimizerError)).not.toContain("Implement that feature")
+      expect(String(event.metadata?.contextPromptOptimizerError).length).toBeGreaterThan(0)
     }
   })
 

@@ -104,8 +104,13 @@ try {
     assert.equal(compactions[0]?.status, "completed", `manual summary compaction: ${JSON.stringify(compactions)}`)
     assert(compactions[0]?.summary.includes("## Objective"), "completed summary is readable")
   }
-  const failed = await api(`/api/session/${session.id}/prompt`, { text: "Investigate TRIGGER_OPTIMIZER_FAILURE without changing anything else", resume: false })
-  assert.equal((failed.payload ?? failed).text, "Investigate TRIGGER_OPTIMIZER_FAILURE without changing anything else")
+  const failedRequest = "Investigate TRIGGER_OPTIMIZER_FAILURE without changing anything else"
+  const failed = await api(`/api/session/${session.id}/prompt`, { text: failedRequest, resume: false })
+  const failedPayload = failed.payload ?? failed
+  assert.equal(failedPayload.text, failedRequest)
+  const reason = failedPayload.metadata?.contextPromptOptimizerError
+  assert(typeof reason === "string" && reason.length > 0, "failure reason is recorded for the UI")
+  assert(!String(reason).includes(failedRequest), "failure reason never echoes the request")
   if (process.env.V2_COMPACTION === "1") {
     const optimizerCall = calls.filter((call) => call.model === "optimizer").at(-1)
     assert(JSON.stringify(optimizerCall?.messages).includes("## Objective"), "optimizer receives the completed recap from the connected server")

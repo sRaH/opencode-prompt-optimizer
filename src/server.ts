@@ -29,6 +29,15 @@ export function readRewrite(value: unknown): RewriteMetadata | undefined {
     && ["recap+recent", "recap", "recent", "none"].includes(record.context ?? "")) return record as RewriteMetadata
 }
 
+/** A short, user-visible failure reason. Never echo the request back into metadata. */
+export function errorReason(error: unknown, request: string): string {
+  const raw = error instanceof Error ? `${error.name}: ${error.message}`
+    : error === null || error === undefined ? "" : String(error)
+  const trimmed = request.trim()
+  const scrubbed = trimmed.length > 16 ? raw.split(trimmed).join("[request]") : raw
+  return scrubbed.replace(/\s+/g, " ").trim().slice(0, 300) || "unknown error"
+}
+
 export const setup: Plugin.Plugin["setup"] = async (ctx) => {
   if (!ctx.app.version.startsWith("2.")) throw new Error(`${ID} requires OpenCode v2`)
   const config = loadConfig(ctx.options)
@@ -113,8 +122,11 @@ export const setup: Plugin.Plugin["setup"] = async (ctx) => {
         chosen: result.chosen, judged: result.judged, toast: config.toast,
       } satisfies RewriteMetadata }
     } catch (error) {
-      // Do not persist prompt contents or provider errors in metadata or logs.
-      console.warn(`${ID}: sent original prompt (${error instanceof Error ? error.name : "error"})`)
+      // Keep the failure visible without echoing request text or raw payload content.
+      const reason = errorReason(error, original)
+      if (config.metadata !== "none")
+        event.metadata = { ...event.metadata, contextPromptOptimizerError: reason }
+      console.warn(`${ID}: sent original prompt — ${reason}`)
     }
   }
   await ctx.session.hook("prompt", prepare)

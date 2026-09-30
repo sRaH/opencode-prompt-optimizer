@@ -21,3 +21,5 @@ jobs:
       - run: bun run typecheck
       - run: bun test
       - run: bun run build
+      - run: bun run build:extension
+      - run: git diff --exit-code -- openchamber/panel/main.js openchamber/service/main.js

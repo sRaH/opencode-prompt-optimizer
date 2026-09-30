@@ -1,6 +1,6 @@
 {
   "name": "opencode-context-prompt-optimizer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "One-call, context-aware prompt optimization for OpenCode v2",
@@ -10,7 +10,30 @@
     "url": "git+https://github.com/sRaH/opencode-prompt-optimizer.git"
   },
   "homepage": "https://github.com/sRaH/opencode-prompt-optimizer#readme",
-  "bugs": { "url": "https://github.com/sRaH/opencode-prompt-optimizer/issues" },
+  "bugs": {
+    "url": "https://github.com/sRaH/opencode-prompt-optimizer/issues"
+  },
+  "openchamber": {
+    "apiVersion": 1,
+    "engines": { "openchamber": ">=1.24.0" },
+    "contributes": {
+      "panel": {
+        "id": "prompt-optimizer",
+        "name": "Prompt Optimizer",
+        "icon": "sparkling-2",
+        "entry": "openchamber/panel/index.html"
+      },
+      "filesystem": [
+        "~/.config/opencode/opencode.json",
+        "~/.config/openchamber/opencode.managed.json"
+      ],
+      "service": {
+        "entry": "openchamber/service/main.js",
+        "runtime": "host",
+        "permissions": {}
+      }
+    }
+  },
   "main": "./dist/server.js",
   "exports": {
     ".": "./dist/server.js",
@@ -18,7 +41,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p openchamber/tsconfig.json",
+    "build:extension": "bunx openchamber-guest-bundle openchamber/panel/main.ts openchamber/panel/main.js && bunx openchamber-guest-bundle --node openchamber/service/main.ts openchamber/service/main.js",
     "test": "bun test",
     "e2e": "bun run build && bun tests/e2e.ts"
   },
@@ -27,7 +51,10 @@
     "@opencode/plugin": "2.0.18"
   },
   "devDependencies": {
+    "@openchamber/sdk": "2.0.4",
     "@types/bun": "1.4.2",
+    "@types/node": "22",
+    "jsonc-parser": "3.3.1",
     "typescript": "5.9.3"
   }
 }
